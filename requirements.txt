@@ -1,0 +1,7 @@
+pandas
+html5lib
+lxml
+selenium
+webdriver-manager
+streamlit
+altair
