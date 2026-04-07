@@ -13,7 +13,7 @@ st.markdown("追蹤 00981A(統一)、00991A(復華)、00980A(野村) 的集體�
 # ==========================================
 # 2. 讀取與處理資料 (快取機制)
 # ==========================================
-@st.cache_data
+@st.cache_data(ttl=60) # 🌟 加上 ttl=60 (60秒過期)，這樣爬蟲更新資料後，網頁過一分鐘重整就能看到了！
 def load_data():
     conn = sqlite3.connect('etf_holdings.db')
     df = pd.read_sql("SELECT * FROM daily_weights", conn)
