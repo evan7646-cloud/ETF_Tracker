@@ -38,10 +38,14 @@ else:
         df_latest = df[df['Date'] == date_latest]
         df_prev = df[df['Date'] == date_prev]
 
-        avg_latest = df_latest.groupby(['Stock_Symbol', 'Stock_Name'])['Weight'].mean().reset_index()
-        avg_prev = df_prev.groupby(['Stock_Symbol', 'Stock_Name'])['Weight'].mean().reset_index()
+        # 改為純粹用 Stock_Symbol 來分群與比對，避免各網站的中文名稱不同導致判斷為兩檔不同的股票
+        avg_latest = df_latest.groupby('Stock_Symbol').agg({'Stock_Name': 'first', 'Weight': 'mean'}).reset_index()
+        avg_prev = df_prev.groupby('Stock_Symbol').agg({'Stock_Name': 'first', 'Weight': 'mean'}).reset_index()
 
-        merged = pd.merge(avg_latest, avg_prev, on=['Stock_Symbol', 'Stock_Name'], suffixes=('_Latest', '_Prev'), how='outer').fillna(0)
+        merged = pd.merge(avg_latest, avg_prev, on='Stock_Symbol', suffixes=('_Latest', '_Prev'), how='outer')
+        # 整合 Stock_Name，如果最新沒資料就用過去的名稱
+        merged['Stock_Name'] = merged['Stock_Name_Latest'].fillna(merged['Stock_Name_Prev'])
+        merged = merged.fillna(0)
         merged['Delta(%)'] = merged['Weight_Latest'] - merged['Weight_Prev']
 
         top_buy = merged[merged['Delta(%)'] > 0].sort_values(by='Delta(%)', ascending=False).head(15)

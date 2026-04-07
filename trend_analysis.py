@@ -81,18 +81,24 @@ def main():
     df = pd.read_sql(query, conn)
     conn.close()
 
-    # 4. 計算各股票在「當天」三大基金中的「平均權重」
-    pivot_etf = df.pivot_table(index=['Date', 'Stock_Symbol', 'Stock_Name'], 
+    # 建立股票代號到名稱的對照表 (取第一筆出現的名稱，以作後續呈現用)
+    name_mapping = df.drop_duplicates(subset=['Stock_Symbol']).set_index('Stock_Symbol')['Stock_Name']
+
+    # 4. 嚴格限定只使用 'Stock_Symbol' 作為索引，避免各家網站命名不同造成資料斷層
+    pivot_etf = df.pivot_table(index=['Date', 'Stock_Symbol'], 
                                columns='ETF_Code', 
                                values='Weight').fillna(0)
     
     pivot_etf['Avg_Weight'] = pivot_etf.sum(axis=1) / 3
-    avg_df = pivot_etf.reset_index()[['Date', 'Stock_Symbol', 'Stock_Name', 'Avg_Weight']]
+    avg_df = pivot_etf.reset_index()[['Date', 'Stock_Symbol', 'Avg_Weight']]
 
     # 5. 將日期展開，進行最新日與過去日的比較 (Pivot)
-    trend_df = avg_df.pivot_table(index=['Stock_Symbol', 'Stock_Name'], 
+    trend_df = avg_df.pivot_table(index='Stock_Symbol', 
                                   columns='Date', 
                                   values='Avg_Weight').reset_index()
+    
+    # 補回統一的股票名稱
+    trend_df['Stock_Name'] = trend_df['Stock_Symbol'].map(name_mapping)
     
     # 將空值補 0 (代表某天沒有持股)
     trend_df = trend_df.fillna(0)
