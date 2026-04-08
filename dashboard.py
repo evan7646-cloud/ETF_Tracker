@@ -7,8 +7,8 @@ import altair as alt  # 🌟 新增 Altair 套件來客製化圖表
 # 1. 網頁基本設定
 # ==========================================
 st.set_page_config(page_title="ETF 聰明錢追蹤儀表板", layout="wide", page_icon="📈")
-st.title("📊 五大主動式基金 - 籌碼流向儀表板")
-st.markdown("追蹤 00981A(統一)、00991A(復華)、00980A(野村)、00982A(群益)、00992A(群益) 的集體加減碼動向。")
+st.title("📊 三大主動式基金 - 籌碼流向儀表板")
+st.markdown("追蹤 00981A(統一)、00991A(復華)、00980A(野村) 的集體加減碼動向。")
 
 # ==========================================
 # 2. 讀取與處理資料 (快取機制)
@@ -27,27 +27,10 @@ if df.empty:
 else:
     # 🌟 關鍵修正：強制將所有日期轉為標準格式 YYYY-MM-DD，這樣字串排序就會完美等同於時間排序
     df['Date'] = pd.to_datetime(df['Date'], format='mixed').dt.strftime('%Y-%m-%d')
-    
-    # ==========================================
-    # 3. 側邊欄控制項 - ETF 篩選組合
-    # ==========================================
-    st.sidebar.header("🎯 篩選主動式基金")
-    available_etfs = sorted(df['ETF_Code'].unique())
-    selected_etfs = st.sidebar.multiselect(
-        "勾選想要組合分析的 ETF：", 
-        options=available_etfs,
-        default=available_etfs
-    )
-    
-    if not selected_etfs:
-        st.warning("⚠️ 請從左側邊欄至少選擇一檔 ETF 進行分析！")
-        st.stop()
-        
-    df = df[df['ETF_Code'].isin(selected_etfs)]
     available_dates = sorted(df['Date'].unique(), reverse=True)
 
     # ==========================================
-    # 4. 側邊欄控制項 - 日期設定
+    # 3. 側邊欄控制項
     # ==========================================
     st.sidebar.header("🗓️ 設定比較區間")
     if len(available_dates) >= 2:
@@ -114,21 +97,45 @@ else:
             st.info("該期間無明顯調節標的")
 
         # ==========================================
-        # 5. 完整原始數據表格
+        # 5. 完整原始數據表格 (帶高光標示)
         # ==========================================
         st.markdown("---")
         st.subheader("📋 完整成分股變動明細")
         
-        display_df = merged.rename(columns={
+        # 1. 判斷並新增「狀態」標籤
+        def check_status(row):
+            if row['Weight_Prev'] == 0 and row['Weight_Latest'] > 0:
+                return '🌟 新納入'
+            elif row['Weight_Latest'] == 0 and row['Weight_Prev'] > 0:
+                return '❌ 已剔除'
+            return '-'
+            
+        merged['狀態'] = merged.apply(check_status, axis=1)
+
+        # 2. 篩選顯示欄位並改名
+        display_df = merged[['狀態', 'Stock_Symbol', 'Stock_Name', 'Weight_Latest', 'Weight_Prev', 'Delta(%)']].rename(columns={
             'Stock_Symbol': '股票代號', 
             'Stock_Name': '股票名稱',
             'Weight_Latest': f'{date_latest} 權重(%)',
             'Weight_Prev': f'{date_prev} 權重(%)',
             'Delta(%)': '兩期變動(%)'
         }).sort_values(by='兩期變動(%)', key=abs, ascending=False)
-        
+
+        # 3. 定義整行上色的邏輯 (🌟 用戶自訂：紅色納入、綠色踢除)
+        def highlight_rows(row):
+            if row['狀態'] == '🌟 新納入':
+                # 返回淺紅色背景 (RGBA 透明度 0.15)
+                return ['background-color: rgba(231, 76, 60, 0.15)'] * len(row) 
+            elif row['狀態'] == '❌ 已剔除':
+                # 返回淺綠色背景 (RGBA 透明度 0.15)
+                return ['background-color: rgba(46, 204, 113, 0.15)'] * len(row)  
+            return [''] * len(row)
+
+        # 4. 渲染帶有顏色樣式的 DataFrame
         st.dataframe(
-            display_df.style.format({
+            display_df.style
+            .apply(highlight_rows, axis=1) # 套用上色邏輯
+            .format({
                 f'{date_latest} 權重(%)': '{:.2f}%', 
                 f'{date_prev} 權重(%)': '{:.2f}%', 
                 '兩期變動(%)': '{:+.2f}%'
