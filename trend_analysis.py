@@ -89,7 +89,8 @@ def main():
                                columns='ETF_Code', 
                                values='Weight').fillna(0)
     
-    pivot_etf['Avg_Weight'] = pivot_etf.sum(axis=1) / 3
+    # 動態計算平均，支援任意數量的主動式基金 (自動處理 3 檔或 4 檔)
+    pivot_etf['Avg_Weight'] = pivot_etf.mean(axis=1)
     avg_df = pivot_etf.reset_index()[['Date', 'Stock_Symbol', 'Avg_Weight']]
 
     # 5. 將日期展開，進行最新日與過去日的比較 (Pivot)
@@ -122,7 +123,7 @@ def main():
 
     # 印出結果
     print("="*80)
-    print(f" 🚀 三大主動式基金平均權重趨勢對照 ({date_prev} vs {date_latest})")
+    print(f" 🚀 主動式基金平均權重趨勢對照 ({date_prev} vs {date_latest})")
     print("="*80)
     print(final_report.head(20).to_string(index=False)) 
     print("="*80)

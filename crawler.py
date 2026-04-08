@@ -11,6 +11,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from bs4 import BeautifulSoup
 
 def setup_driver():
     chrome_options = Options()
@@ -122,7 +123,7 @@ def fetch_etf_data(driver, etf_code, url):
         # ==========================================
         # 🎯 00980A (野村) - 拔除滾動，精準點擊 + 掃描最大表
         # ==========================================
-        else:
+        elif etf_code == "00980A":
             time.sleep(3)
             print("   👉 正在點擊野村「查看更多」按鈕...")
             
@@ -159,6 +160,48 @@ def fetch_etf_data(driver, etf_code, url):
                 return best_df
             else:
                 print(f"   ❌ {etf_code} 抓取失敗：找不到符合條件的持股表格")
+
+        # ==========================================
+        # 🎯 00982A, 00992A (群益) - 點擊展開全部
+        # ==========================================
+        elif etf_code in ["00982A", "00992A"]:
+            time.sleep(3)
+            print("   👉 正在點擊群益「展開全部」按鈕...")
+            
+            driver.execute_script("""
+                let btn = document.querySelector('button.pct-stock-table-tbody-toggle-btn');
+                if(btn) { btn.click(); }
+            """)
+            
+            time.sleep(3) 
+            
+            html_content = driver.page_source
+            soup = BeautifulSoup(html_content, 'html.parser')
+            
+            # 尋找所有像 table row 的 div (群益把它叫 class="tr")
+            rows = soup.find_all('div', class_='tr')
+            data = []
+            
+            for row in rows:
+                # 取得裡面所有的 div.th 或 div.td
+                cols = row.find_all('div')
+                if len(cols) >= 3:
+                    symbol = cols[0].get_text(strip=True)
+                    name = cols[1].get_text(strip=True)
+                    weight = cols[2].get_text(strip=True)
+                    
+                    # 確保它是真正的資料行 (由數字開頭)
+                    if any(char.isdigit() for char in symbol):
+                        data.append({'股票代號': symbol, '股票名稱': name, '權重': weight})
+                        
+            if data:
+                df = pd.DataFrame(data)
+                clean_df = clean_and_format_data(df, etf_code)
+                if not clean_df.empty:
+                    print(f"   ✅ {etf_code} 成功抓取！總共：{len(clean_df)} 筆持股")
+                    return clean_df
+                
+            print(f"   ❌ {etf_code} 抓取失敗：找不到符合條件的持股表格")
             
     except Exception as e:
         print(f"   ❌ {etf_code} 執行異常: {e}")
@@ -171,8 +214,16 @@ def save_to_sqlite(df):
     db_path = os.path.join(current_dir, 'etf_holdings.db')
     conn = sqlite3.connect(db_path)
     try:
+        # 重大修正：避免因為之前 fix_date.py 設定的 UNIQUE 唯一限制，導致重新執行時引發寫入失敗。
+        # 做法：寫入前先將資料庫內同一天、同一檔 ETF 的紀錄刪除，保證最新抓的資料能順利覆蓋。
+        cur = conn.cursor()
+        for date_val in df['Date'].unique():
+            for etf_val in df['ETF_Code'].unique():
+                cur.execute("DELETE FROM daily_weights WHERE Date = ? AND ETF_Code = ?", (str(date_val), str(etf_val)))
+        conn.commit()
+        
         df.to_sql(name='daily_weights', con=conn, if_exists='append', index=False)
-        print(f"\n💾 資料庫寫入成功！本日總計新增：{len(df)} 筆")
+        print(f"\n💾 資料庫寫入成功！本日總計新增或更新：{len(df)} 筆")
     except Exception as e:
         print(f"❌ 寫入資料庫失敗: {e}")
     finally:
@@ -185,7 +236,9 @@ def main():
     etf_list = [
         {"code": "00981A", "url": "https://www.ezmoney.com.tw/ETF/Fund/Info?fundCode=49YTW"},
         {"code": "00991A", "url": "https://www.fhtrust.com.tw/ETF/etf_detail/ETF23#stockhold"},
-        {"code": "00980A", "url": "https://www.nomurafunds.com.tw/ETFWEB/product-description?fundNo=00980A&tab=Shareholding"}
+        {"code": "00980A", "url": "https://www.nomurafunds.com.tw/ETFWEB/product-description?fundNo=00980A&tab=Shareholding"},
+        {"code": "00982A", "url": "https://www.capitalfund.com.tw/etf/product/detail/399/portfolio"},
+        {"code": "00992A", "url": "https://www.capitalfund.com.tw/etf/product/detail/500/portfolio"}
     ]
     
     all_results = []
