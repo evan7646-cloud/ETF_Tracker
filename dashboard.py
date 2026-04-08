@@ -27,10 +27,27 @@ if df.empty:
 else:
     # 🌟 關鍵修正：強制將所有日期轉為標準格式 YYYY-MM-DD，這樣字串排序就會完美等同於時間排序
     df['Date'] = pd.to_datetime(df['Date'], format='mixed').dt.strftime('%Y-%m-%d')
+    
+    # ==========================================
+    # 3. 側邊欄控制項 - ETF 篩選組合
+    # ==========================================
+    st.sidebar.header("🎯 篩選主動式基金")
+    available_etfs = sorted(df['ETF_Code'].unique())
+    selected_etfs = st.sidebar.multiselect(
+        "勾選想要組合分析的 ETF：", 
+        options=available_etfs,
+        default=available_etfs
+    )
+    
+    if not selected_etfs:
+        st.warning("⚠️ 請從左側邊欄至少選擇一檔 ETF 進行分析！")
+        st.stop()
+        
+    df = df[df['ETF_Code'].isin(selected_etfs)]
     available_dates = sorted(df['Date'].unique(), reverse=True)
 
     # ==========================================
-    # 3. 側邊欄控制項
+    # 4. 側邊欄控制項 - 日期設定
     # ==========================================
     st.sidebar.header("🗓️ 設定比較區間")
     if len(available_dates) >= 2:
