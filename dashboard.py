@@ -25,6 +25,8 @@ df = load_data()
 if df.empty:
     st.warning("⚠️ 資料庫目前沒有資料，請先執行爬蟲 crawler.py！")
 else:
+    # 🌟 關鍵修正：強制將所有日期轉為標準格式 YYYY-MM-DD，這樣字串排序就會完美等同於時間排序
+    df['Date'] = pd.to_datetime(df['Date'], format='mixed').dt.strftime('%Y-%m-%d')
     available_dates = sorted(df['Date'].unique(), reverse=True)
 
     # ==========================================
