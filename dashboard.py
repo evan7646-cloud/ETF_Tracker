@@ -89,6 +89,29 @@ else:
     merged = merged.fillna(0)
     merged['Delta(%)'] = merged['Weight_Latest'] - merged['Weight_Prev']
 
+    # --- 新增：計算各 ETF 的貢獻度 ---
+    etf_detail_latest = df_latest[['Stock_Symbol', 'ETF_Code', 'Weight']]
+    etf_detail_prev = df_prev[['Stock_Symbol', 'ETF_Code', 'Weight']]
+    
+    etf_merged = pd.merge(etf_detail_latest, etf_detail_prev, on=['Stock_Symbol', 'ETF_Code'], suffixes=('_L', '_P'), how='outer').fillna(0)
+    etf_merged['ETF_Delta'] = etf_merged['Weight_L'] - etf_merged['Weight_P']
+    etf_merged = etf_merged[etf_merged['ETF_Delta'].abs() > 0.001].copy() # 忽略極小浮點數誤差
+    
+    def format_contrib(row):
+        sign = "+" if row["ETF_Delta"] > 0 else ""
+        return f"{row['ETF_Code']}({sign}{row['ETF_Delta']:.2f}%)"
+    
+    if not etf_merged.empty:
+        etf_merged['Contrib_Str'] = etf_merged.apply(format_contrib, axis=1)
+        contrib_df = etf_merged.groupby('Stock_Symbol')['Contrib_Str'].apply(lambda x: ", ".join(x)).reset_index()
+        contrib_df.rename(columns={'Contrib_Str': '各 ETF 異動貢獻'}, inplace=True)
+    else:
+        contrib_df = pd.DataFrame(columns=['Stock_Symbol', '各 ETF 異動貢獻'])
+
+    merged = pd.merge(merged, contrib_df, on='Stock_Symbol', how='left')
+    merged['各 ETF 異動貢獻'] = merged['各 ETF 異動貢獻'].fillna('-')
+    # -----------------------------------
+
     # 篩選前 15 名變動
     top_buy = merged[merged['Delta(%)'] > 0].sort_values(by='Delta(%)', ascending=False).head(15)
     top_sell = merged[merged['Delta(%)'] < 0].sort_values(by='Delta(%)', ascending=True).head(15)
@@ -138,12 +161,13 @@ else:
             
     merged['狀態'] = merged.apply(check_status, axis=1)
 
-    display_df = merged[['狀態', 'Stock_Symbol', 'Stock_Name', 'Weight_Latest', 'Weight_Prev', 'Delta(%)']].rename(columns={
+    display_df = merged[['狀態', 'Stock_Symbol', 'Stock_Name', 'Weight_Latest', 'Weight_Prev', 'Delta(%)', '各 ETF 異動貢獻']].rename(columns={
         'Stock_Symbol': '股票代號', 
         'Stock_Name': '股票名稱',
         'Weight_Latest': f'{date_latest} 權重(%)',
         'Weight_Prev': f'{date_prev} 權重(%)',
-        'Delta(%)': '兩期變動(%)'
+        'Delta(%)': '兩期變動(%)',
+        '各 ETF 異動貢獻': '異動明細 (ETF: 增減幅度)'
     }).sort_values(by='兩期變動(%)', key=abs, ascending=False)
 
     def highlight_rows(row):
