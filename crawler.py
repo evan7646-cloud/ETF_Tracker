@@ -231,6 +231,13 @@ def save_to_sqlite(df):
 
 def main():
     print("🚀 ETF 全自動持股追蹤系統 (按鈕狙擊版)...")
+    
+    # --- 新增：週末防呆檢查 ---
+    if datetime.today().weekday() >= 5:  # 5 = Saturday, 6 = Sunday
+        print("⏸️ 今日為週末，股市未開盤，無更新數據，自動停止抓取。")
+        return
+    # -----------------------
+    
     driver = setup_driver()
     
     etf_list = [
