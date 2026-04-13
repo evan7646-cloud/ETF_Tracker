@@ -201,6 +201,58 @@ def fetch_etf_data(driver, etf_code, url):
                     print(f"   ✅ {etf_code} 成功抓取！總共：{len(clean_df)} 筆持股")
                     return clean_df
                 
+        # ==========================================
+        # 🎯 00400A (國泰) - 點擊展開按鈕並從 DIV 結構解析
+        # ==========================================
+        elif etf_code == "00400A":
+            time.sleep(5)
+            print("   👉 正在載入國泰 00400A，嘗試點擊「展開全部」按鈕...")
+            
+            driver.execute_script("""
+                let btn = document.querySelector('.button-box');
+                if(btn) { btn.click(); }
+            """)
+            
+            time.sleep(3) 
+            
+            html_content = driver.page_source
+            soup = BeautifulSoup(html_content, 'html.parser')
+            
+            box = soup.find('div', class_='bar_table_body')
+            data = []
+            
+            if box:
+                rows = box.find_all('div', class_='bar_table_line')
+                for row in rows:
+                    try:
+                        code_node = row.find('span', class_='code')
+                        name_node = row.find('span', class_='name')
+                        if code_node and name_node:
+                            symbol = code_node.get_text(strip=True)
+                            name = name_node.get_text(strip=True)
+                            
+                            # 尋找權重
+                            other_val = row.find('div', class_='other_value')
+                            weight_str = "0"
+                            if other_val:
+                                spans = other_val.find_all('span')
+                                for s in spans:
+                                    t = s.get_text(strip=True)
+                                    if '%' in t:
+                                        weight_str = t.replace('%', '')
+                                        break
+                                        
+                            data.append({'股票代號': symbol, '股票名稱': name, '權重': weight_str})
+                    except Exception as e:
+                        print(f"解析 {etf_code} row 發生異常: {e}")
+                        
+            if data:
+                df = pd.DataFrame(data)
+                clean_df = clean_and_format_data(df, etf_code)
+                if not clean_df.empty:
+                    print(f"   ✅ {etf_code} 成功抓取！總共：{len(clean_df)} 筆持股")
+                    return clean_df
+                
             print(f"   ❌ {etf_code} 抓取失敗：找不到符合條件的持股表格")
             
     except Exception as e:
@@ -245,7 +297,8 @@ def main():
         {"code": "00991A", "url": "https://www.fhtrust.com.tw/ETF/etf_detail/ETF23#stockhold"},
         {"code": "00980A", "url": "https://www.nomurafunds.com.tw/ETFWEB/product-description?fundNo=00980A&tab=Shareholding"},
         {"code": "00982A", "url": "https://www.capitalfund.com.tw/etf/product/detail/399/portfolio"},
-        {"code": "00992A", "url": "https://www.capitalfund.com.tw/etf/product/detail/500/portfolio"}
+        {"code": "00992A", "url": "https://www.capitalfund.com.tw/etf/product/detail/500/portfolio"},
+        {"code": "00400A", "url": "https://www.cathaysite.com.tw/ETF/detail/EEA?tab=etf3"}
     ]
     
     all_results = []

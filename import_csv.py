@@ -3,7 +3,7 @@ import sqlite3
 import os
 
 db_path = 'etf_holdings.db'
-csv_path = '00982A&00992A.csv'
+csv_path = '00991A&00980A&00400A.csv'
 
 def import_data():
     if not os.path.exists(csv_path):
