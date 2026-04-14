@@ -182,5 +182,15 @@ else:
             '兩期總變動(%)': '{:+.2f}%'
         }),
         use_container_width=True,
-        height=600
+        height=600,
+        hide_index=True,
+        column_config={
+            "狀態": st.column_config.TextColumn(width="small"),
+            "股票代號": st.column_config.TextColumn(width="small"),
+            "股票名稱": st.column_config.TextColumn(width="small"),
+            f"{date_latest} 總權重(%)": st.column_config.TextColumn(width="small"),
+            f"{date_prev} 總權重(%)": st.column_config.TextColumn(width="small"),
+            "兩期總變動(%)": st.column_config.TextColumn(width="small"),
+            "異動明細 (ETF: 增減幅度)": st.column_config.TextColumn(width="large")
+        }
     )
