@@ -99,7 +99,8 @@ else:
     
     def format_contrib(row):
         sign = "+" if row["ETF_Delta"] > 0 else ""
-        return f"{row['ETF_Code']}({sign}{row['ETF_Delta']:.2f}%)"
+        marker = "🔴" if row["ETF_Delta"] > 0 else "🟢"
+        return f"{marker} {row['ETF_Code']}({sign}{row['ETF_Delta']:.2f}%)"
     
     if not etf_merged.empty:
         etf_merged['Contrib_Str'] = etf_merged.apply(format_contrib, axis=1)
