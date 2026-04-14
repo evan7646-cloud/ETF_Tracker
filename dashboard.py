@@ -80,11 +80,11 @@ else:
     df_latest = df_filtered[df_filtered['Date'] == date_latest]
     df_prev = df_filtered[df_filtered['Date'] == date_prev]
 
-    # 計算平均權重 (反映集體佈局)
-    avg_latest = df_latest.groupby('Stock_Symbol').agg({'Stock_Name': 'first', 'Weight': 'mean'}).reset_index()
-    avg_prev = df_prev.groupby('Stock_Symbol').agg({'Stock_Name': 'first', 'Weight': 'mean'}).reset_index()
+    # 計算總和權重 (反映整體資金增減)
+    tot_latest = df_latest.groupby('Stock_Symbol').agg({'Stock_Name': 'first', 'Weight': 'sum'}).reset_index()
+    tot_prev = df_prev.groupby('Stock_Symbol').agg({'Stock_Name': 'first', 'Weight': 'sum'}).reset_index()
 
-    merged = pd.merge(avg_latest, avg_prev, on='Stock_Symbol', suffixes=('_Latest', '_Prev'), how='outer')
+    merged = pd.merge(tot_latest, tot_prev, on='Stock_Symbol', suffixes=('_Latest', '_Prev'), how='outer')
     merged['Stock_Name'] = merged['Stock_Name_Latest'].fillna(merged['Stock_Name_Prev'])
     merged = merged.fillna(0)
     merged['Delta(%)'] = merged['Weight_Latest'] - merged['Weight_Prev']
@@ -164,11 +164,11 @@ else:
     display_df = merged[['狀態', 'Stock_Symbol', 'Stock_Name', 'Weight_Latest', 'Weight_Prev', 'Delta(%)', '各 ETF 異動貢獻']].rename(columns={
         'Stock_Symbol': '股票代號', 
         'Stock_Name': '股票名稱',
-        'Weight_Latest': f'{date_latest} 權重(%)',
-        'Weight_Prev': f'{date_prev} 權重(%)',
-        'Delta(%)': '兩期變動(%)',
+        'Weight_Latest': f'{date_latest} 總權重(%)',
+        'Weight_Prev': f'{date_prev} 總權重(%)',
+        'Delta(%)': '兩期總變動(%)',
         '各 ETF 異動貢獻': '異動明細 (ETF: 增減幅度)'
-    }).sort_values(by='兩期變動(%)', key=abs, ascending=False)
+    }).sort_values(by='兩期總變動(%)', key=abs, ascending=False)
 
     def highlight_rows(row):
         if row['狀態'] == '🌟 新納入': return ['background-color: rgba(231, 76, 60, 0.15)'] * len(row) 
@@ -177,9 +177,9 @@ else:
 
     st.dataframe(
         display_df.style.apply(highlight_rows, axis=1).format({
-            f'{date_latest} 權重(%)': '{:.2f}%', 
-            f'{date_prev} 權重(%)': '{:.2f}%', 
-            '兩期變動(%)': '{:+.2f}%'
+            f'{date_latest} 總權重(%)': '{:.2f}%', 
+            f'{date_prev} 總權重(%)': '{:.2f}%', 
+            '兩期總變動(%)': '{:+.2f}%'
         }),
         use_container_width=True,
         height=600
