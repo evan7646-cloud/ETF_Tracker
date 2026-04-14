@@ -135,10 +135,10 @@ else:
     top_buy['Label'] = top_buy['Stock_Name'] + ';;(' + top_buy['Stock_Symbol'] + ')'
     top_sell['Label'] = top_sell['Stock_Name'] + ';;(' + top_sell['Stock_Symbol'] + ')'
 
-    st.subheader("🔥 投信集體【加碼】排行榜")
+    st.markdown("<h3 style='font-size: 26px;'>🔥 投信集體【加碼】排行榜</h3>", unsafe_allow_html=True)
     if not top_buy.empty:
         chart_buy = alt.Chart(top_buy).mark_bar(color="#ff4b4b").encode(
-            x=alt.X('Label', sort=None, axis=alt.Axis(labelAngle=0, title="股票名稱", labelExpr="split(datum.value, ';;')")),
+            x=alt.X('Label', sort=None, axis=alt.Axis(labelAngle=0, title="股票名稱", labelExpr="split(datum.value, ';;')", labelFontSize=16, titleFontSize=14)),
             y=alt.Y('Delta(%)', title="加碼幅度 (%)"),
             tooltip=['Stock_Symbol', 'Stock_Name', alt.Tooltip('Delta(%)', format='.2f')]
         ).properties(height=400)
@@ -146,11 +146,11 @@ else:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    st.subheader("🧊 投信集體【調節】排行榜")
+    st.markdown("<h3 style='font-size: 26px;'>🧊 投信集體【調節】排行榜</h3>", unsafe_allow_html=True)
     if not top_sell.empty:
         top_sell['調節幅度(%)'] = top_sell['Delta(%)'].abs()
         chart_sell = alt.Chart(top_sell).mark_bar(color="#00cc96").encode(
-            x=alt.X('Label', sort=None, axis=alt.Axis(labelAngle=0, title="股票名稱", labelExpr="split(datum.value, ';;')")),
+            x=alt.X('Label', sort=None, axis=alt.Axis(labelAngle=0, title="股票名稱", labelExpr="split(datum.value, ';;')", labelFontSize=16, titleFontSize=14)),
             y=alt.Y('調節幅度(%)', title="調節幅度 (%)"),
             tooltip=['Stock_Symbol', 'Stock_Name', alt.Tooltip('調節幅度(%)', format='.2f')]
         ).properties(height=400)
@@ -160,7 +160,7 @@ else:
     # 6. 完整明細表格 (帶顏色標示)
     # ==========================================
     st.markdown("---")
-    st.subheader("📋 完整成分股變動明細")
+    st.markdown("<h3 style='font-size: 28px;'>📋 完整成分股變動明細</h3>", unsafe_allow_html=True)
     
     def check_status(row):
         if row['Weight_Prev'] == 0 and row['Weight_Latest'] > 0: return '🌟 新納入'
