@@ -97,22 +97,27 @@ else:
     etf_merged['ETF_Delta'] = etf_merged['Weight_L'] - etf_merged['Weight_P']
     etf_merged = etf_merged[etf_merged['ETF_Delta'].abs() > 0.001].copy() # 忽略極小浮點數誤差
     
-    def format_contrib(row):
-        sign = "+" if row["ETF_Delta"] > 0 else ""
-        if row["ETF_Delta"] > 0:
-            return f"<span style='color:#ff4b4b'>▲ {row['ETF_Code']}({sign}{row['ETF_Delta']:.2f}%)</span>"
-        else:
-            return f"<span style='color:#00cc96'>▼ {row['ETF_Code']}({sign}{row['ETF_Delta']:.2f}%)</span>"
+    def format_up(row):
+        return f"{row['ETF_Code']}(+{row['ETF_Delta']:.2f}%)" if row["ETF_Delta"] > 0 else None
+        
+    def format_down(row):
+        return f"{row['ETF_Code']}({row['ETF_Delta']:.2f}%)" if row["ETF_Delta"] < 0 else None
     
     if not etf_merged.empty:
-        etf_merged['Contrib_Str'] = etf_merged.apply(format_contrib, axis=1)
-        contrib_df = etf_merged.groupby('Stock_Symbol')['Contrib_Str'].apply(lambda x: ", ".join(x)).reset_index()
-        contrib_df.rename(columns={'Contrib_Str': '各 ETF 異動貢獻'}, inplace=True)
+        etf_merged['Up_Str'] = etf_merged.apply(format_up, axis=1)
+        etf_merged['Down_Str'] = etf_merged.apply(format_down, axis=1)
+        
+        up_df = etf_merged.dropna(subset=['Up_Str']).groupby('Stock_Symbol')['Up_Str'].apply(lambda x: ", ".join(x)).reset_index()
+        down_df = etf_merged.dropna(subset=['Down_Str']).groupby('Stock_Symbol')['Down_Str'].apply(lambda x: ", ".join(x)).reset_index()
+        
+        contrib_df = pd.merge(up_df, down_df, on='Stock_Symbol', how='outer')
+        contrib_df.rename(columns={'Up_Str': '▲ 加碼 ETF', 'Down_Str': '▼ 調節 ETF'}, inplace=True)
     else:
-        contrib_df = pd.DataFrame(columns=['Stock_Symbol', '各 ETF 異動貢獻'])
+        contrib_df = pd.DataFrame(columns=['Stock_Symbol', '▲ 加碼 ETF', '▼ 調節 ETF'])
 
     merged = pd.merge(merged, contrib_df, on='Stock_Symbol', how='left')
-    merged['各 ETF 異動貢獻'] = merged['各 ETF 異動貢獻'].fillna('-')
+    merged['▲ 加碼 ETF'] = merged['▲ 加碼 ETF'].fillna('-')
+    merged['▼ 調節 ETF'] = merged['▼ 調節 ETF'].fillna('-')
     # -----------------------------------
 
     # 篩選前 15 名變動
@@ -164,13 +169,12 @@ else:
             
     merged['狀態'] = merged.apply(check_status, axis=1)
 
-    display_df = merged[['狀態', 'Stock_Symbol', 'Stock_Name', 'Weight_Latest', 'Weight_Prev', 'Delta(%)', '各 ETF 異動貢獻']].rename(columns={
+    display_df = merged[['狀態', 'Stock_Symbol', 'Stock_Name', 'Weight_Latest', 'Weight_Prev', 'Delta(%)', '▲ 加碼 ETF', '▼ 調節 ETF']].rename(columns={
         'Stock_Symbol': '股票代號', 
         'Stock_Name': '股票名稱',
         'Weight_Latest': f'{date_latest} 總權重(%)',
         'Weight_Prev': f'{date_prev} 總權重(%)',
-        'Delta(%)': '兩期總變動(%)',
-        '各 ETF 異動貢獻': '異動明細 (ETF: 增減幅度)'
+        'Delta(%)': '兩期總變動(%)'
     }).sort_values(by='兩期總變動(%)', key=abs, ascending=False)
 
     def highlight_rows(row):
@@ -178,22 +182,32 @@ else:
         if row['狀態'] == '❌ 已剔除': return ['background-color: rgba(46, 204, 113, 0.15)'] * len(row)  
         return [''] * len(row)
 
-    # 使用 HTML 靜態表格來支援局部的字體顏色渲染
-    styled_table = display_df.style.apply(highlight_rows, axis=1).format({
-        f'{date_latest} 總權重(%)': '{:.2f}%', 
-        f'{date_prev} 總權重(%)': '{:.2f}%', 
-        '兩期總變動(%)': '{:+.2f}%'
-    }).hide(axis='index').set_table_styles([
-        {'selector': 'table', 'props': [('width', '100%'), ('color', 'white')]},
-        {'selector': 'th', 'props': [('text-align', 'left'), ('background-color', '#262730'), ('color', 'white'), ('padding', '10px')]},
-        {'selector': 'td', 'props': [('padding', '10px'), ('border-bottom', '1px solid #444')]}
-    ])
+    def color_text(val, color):
+        return f'color: {color};' if val != '-' else ''
 
-    st.markdown(
-        f"""
-        <div style="height: 600px; overflow-y: scroll; border: 1px solid #444; border-radius: 5px;">
-            {styled_table.to_html(escape=False)}
-        </div>
-        """,
-        unsafe_allow_html=True
+    # 恢復互動式表格並使用欄位文字上色
+    styled_df = display_df.style.apply(highlight_rows, axis=1)\
+        .applymap(lambda x: color_text(x, '#ff4b4b'), subset=['▲ 加碼 ETF'])\
+        .applymap(lambda x: color_text(x, '#00cc96'), subset=['▼ 調節 ETF'])\
+        .format({
+            f'{date_latest} 總權重(%)': '{:.2f}%', 
+            f'{date_prev} 總權重(%)': '{:.2f}%', 
+            '兩期總變動(%)': '{:+.2f}%'
+        })
+        
+    st.dataframe(
+        styled_df,
+        use_container_width=True,
+        height=600,
+        hide_index=True,
+        column_config={
+            "狀態": st.column_config.TextColumn(width="small"),
+            "股票代號": st.column_config.TextColumn(width="small"),
+            "股票名稱": st.column_config.TextColumn(width="small"),
+            f"{date_latest} 總權重(%)": st.column_config.TextColumn(width="small"),
+            f"{date_prev} 總權重(%)": st.column_config.TextColumn(width="small"),
+            "兩期總變動(%)": st.column_config.TextColumn(width="small"),
+            "▲ 加碼 ETF": st.column_config.TextColumn(width="medium"),
+            "▼ 調節 ETF": st.column_config.TextColumn(width="medium")
+        }
     )
