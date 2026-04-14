@@ -195,11 +195,14 @@ else:
             '兩期總變動(%)': '{:+.2f}%'
         })
         
-    st.dataframe(
+    st.markdown("🎯 **操作提示**：點擊表格最左側的方塊 (或整列)，即可在最下方展開！")
+    selection = st.dataframe(
         styled_df,
         use_container_width=True,
         height=600,
         hide_index=True,
+        on_select="rerun",
+        selection_mode="single-row",
         column_config={
             "狀態": st.column_config.TextColumn(width="small"),
             "股票代號": st.column_config.TextColumn(width="small"),
@@ -211,3 +214,33 @@ else:
             "▼ 調節 ETF": st.column_config.TextColumn(width="medium")
         }
     )
+
+    # ==========================================
+    # 5. 個股每日動態深度追蹤 (點擊展開)
+    # ==========================================
+    if selection and selection.selection.rows:
+        row_idx = selection.selection.rows[0]
+        sel_symbol = display_df.iloc[row_idx]['股票代號']
+        sel_name = display_df.iloc[row_idx]['股票名稱']
+        
+        st.markdown(f"### 🔍 {sel_name} ({sel_symbol}) - 各 ETF 每日權重動態")
+        
+        df_stock = df_filtered[
+            (df_filtered['Stock_Symbol'] == sel_symbol) & 
+            (df_filtered['Date'] >= date_prev) & 
+            (df_filtered['Date'] <= date_latest)
+        ].copy()
+        
+        if not df_stock.empty:
+            chart = alt.Chart(df_stock).mark_line(point=True, strokeWidth=3).encode(
+                x=alt.X('Date:T', title="日期", axis=alt.Axis(format="%Y-%m-%d")),
+                y=alt.Y('Weight:Q', title="單一 ETF 權重 (%)", scale=alt.Scale(zero=False)),
+                color=alt.Color('ETF_Code:N', title="ETF"),
+                tooltip=[alt.Tooltip('Date:T', title="日期", format="%Y-%m-%d"), 'ETF_Code', alt.Tooltip('Weight:Q', title="權重(%)", format='.2f')]
+            ).properties(height=350)
+            st.altair_chart(chart, use_container_width=True)
+            
+            pivot_df = df_stock.pivot(index='Date', columns='ETF_Code', values='Weight').fillna(0).sort_index(ascending=False)
+            st.dataframe(pivot_df.style.format("{:.2f}%"), use_container_width=True)
+        else:
+            st.info("此區間內無該股票明細數據。")
