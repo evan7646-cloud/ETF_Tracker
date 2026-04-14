@@ -99,8 +99,10 @@ else:
     
     def format_contrib(row):
         sign = "+" if row["ETF_Delta"] > 0 else ""
-        marker = "🔴" if row["ETF_Delta"] > 0 else "🟢"
-        return f"{marker} {row['ETF_Code']}({sign}{row['ETF_Delta']:.2f}%)"
+        if row["ETF_Delta"] > 0:
+            return f"<span style='color:#ff4b4b'>▲ {row['ETF_Code']}({sign}{row['ETF_Delta']:.2f}%)</span>"
+        else:
+            return f"<span style='color:#00cc96'>▼ {row['ETF_Code']}({sign}{row['ETF_Delta']:.2f}%)</span>"
     
     if not etf_merged.empty:
         etf_merged['Contrib_Str'] = etf_merged.apply(format_contrib, axis=1)
@@ -176,22 +178,22 @@ else:
         if row['狀態'] == '❌ 已剔除': return ['background-color: rgba(46, 204, 113, 0.15)'] * len(row)  
         return [''] * len(row)
 
-    st.dataframe(
-        display_df.style.apply(highlight_rows, axis=1).format({
-            f'{date_latest} 總權重(%)': '{:.2f}%', 
-            f'{date_prev} 總權重(%)': '{:.2f}%', 
-            '兩期總變動(%)': '{:+.2f}%'
-        }),
-        use_container_width=True,
-        height=600,
-        hide_index=True,
-        column_config={
-            "狀態": st.column_config.TextColumn(width="small"),
-            "股票代號": st.column_config.TextColumn(width="small"),
-            "股票名稱": st.column_config.TextColumn(width="small"),
-            f"{date_latest} 總權重(%)": st.column_config.TextColumn(width="small"),
-            f"{date_prev} 總權重(%)": st.column_config.TextColumn(width="small"),
-            "兩期總變動(%)": st.column_config.TextColumn(width="small"),
-            "異動明細 (ETF: 增減幅度)": st.column_config.TextColumn(width="large")
-        }
+    # 使用 HTML 靜態表格來支援局部的字體顏色渲染
+    styled_table = display_df.style.apply(highlight_rows, axis=1).format({
+        f'{date_latest} 總權重(%)': '{:.2f}%', 
+        f'{date_prev} 總權重(%)': '{:.2f}%', 
+        '兩期總變動(%)': '{:+.2f}%'
+    }).hide(axis='index').set_table_styles([
+        {'selector': 'table', 'props': [('width', '100%'), ('color', 'white')]},
+        {'selector': 'th', 'props': [('text-align', 'left'), ('background-color', '#262730'), ('color', 'white'), ('padding', '10px')]},
+        {'selector': 'td', 'props': [('padding', '10px'), ('border-bottom', '1px solid #444')]}
+    ])
+
+    st.markdown(
+        f"""
+        <div style="height: 600px; overflow-y: scroll; border: 1px solid #444; border-radius: 5px;">
+            {styled_table.to_html(escape=False)}
+        </div>
+        """,
+        unsafe_allow_html=True
     )
