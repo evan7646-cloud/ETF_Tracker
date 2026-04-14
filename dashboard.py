@@ -187,8 +187,8 @@ else:
 
     # 恢復互動式表格並使用欄位文字上色
     styled_df = display_df.style.apply(highlight_rows, axis=1)\
-        .applymap(lambda x: color_text(x, '#ff4b4b'), subset=['▲ 加碼 ETF'])\
-        .applymap(lambda x: color_text(x, '#00cc96'), subset=['▼ 調節 ETF'])\
+        .map(lambda x: color_text(x, '#ff4b4b'), subset=['▲ 加碼 ETF'])\
+        .map(lambda x: color_text(x, '#00cc96'), subset=['▼ 調節 ETF'])\
         .format({
             f'{date_latest} 總權重(%)': '{:.2f}%', 
             f'{date_prev} 總權重(%)': '{:.2f}%', 
