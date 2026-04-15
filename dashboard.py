@@ -50,11 +50,29 @@ else:
     # ==========================================
     st.sidebar.header("⚙️ 儀表板控制面板")
     
-    # --- 日期選擇 ---
+    # --- 日期選擇 (日曆模式) ---
     all_dates = sorted(df_raw['Date'].unique(), reverse=True)
     if len(all_dates) >= 2:
-        date_latest = st.sidebar.selectbox("最新日期 (T)", all_dates, index=0)
-        date_prev = st.sidebar.selectbox("過去日期 (T-N)", all_dates, index=1)
+        min_date = pd.to_datetime(all_dates[-1]).date()
+        max_date = pd.to_datetime(all_dates[0]).date()
+        
+        default_latest = max_date
+        default_prev = pd.to_datetime(all_dates[1]).date()
+        
+        date_latest_obj = st.sidebar.date_input("🗓️ 最新日期 (T)", value=default_latest, min_value=min_date, max_value=max_date, format="YYYY-MM-DD")
+        date_prev_obj = st.sidebar.date_input("🗓️ 過去日期 (T-N)", value=default_prev, min_value=min_date, max_value=max_date, format="YYYY-MM-DD")
+        
+        date_latest = date_latest_obj.strftime('%Y-%m-%d')
+        date_prev = date_prev_obj.strftime('%Y-%m-%d')
+        
+        # 防呆：避免使用者選到假日 (沒有資料的日子)
+        if date_latest not in all_dates:
+            st.warning(f"⚠️ {date_latest} 沒有基金交易紀錄 (可能是假日)，請重新選擇日期！")
+            st.stop()
+        if date_prev not in all_dates:
+            st.warning(f"⚠️ {date_prev} 沒有基金交易紀錄 (可能是假日)，請重新選擇日期！")
+            st.stop()
+
     else:
         st.sidebar.info("等待資料累積中...")
         st.stop()
