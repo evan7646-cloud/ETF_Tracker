@@ -2,12 +2,29 @@ import sqlite3
 import pandas as pd
 import streamlit as st
 import altair as alt
+import base64
+import os
 
 # ==========================================
-# 1. 網頁基本設定
+# 1. 網頁基本設定與自訂標題
 # ==========================================
-st.set_page_config(page_title="ETF 聰明錢追蹤儀表板", layout="wide", page_icon="📈")
-st.title("📊 五大主動式基金：籌碼流向儀表板")
+st.set_page_config(page_title="主動式ETF追蹤儀表板", layout="wide", page_icon="📈")
+
+# 動態將 Logo 轉為 Base64 顯示以達成同行對齊
+logo_base64 = ""
+if os.path.exists("logo.png"):
+    with open("logo.png", "rb") as image_file:
+        logo_base64 = base64.b64encode(image_file.read()).decode()
+
+title_html = f"""
+<div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+    <h1 style="margin: 0;">📊 主動式ETF：籌碼流向儀表板</h1>
+    <img src="data:image/png;base64,{logo_base64}" width="40" style="object-fit: contain;">
+    <span style="color: #CD002A; font-weight: 800; font-size: 22px;">國票期貨法人部製作</span>
+</div>
+"""
+st.markdown(title_html, unsafe_allow_html=True)
+
 st.markdown("追蹤多檔 ETF 的集體加減碼動向，掌握投信法人核心佈局。")
 
 # ==========================================
@@ -48,9 +65,9 @@ else:
     st.sidebar.subheader("🎯 篩選觀測標的")
     
     etf_names = {
-        "00400A": "00400A (國泰台股動能高息)\n[4/7以後有資料]",
+        "00400A": "00400A (國泰台股動能高息)",
         "00980A": "00980A (野村臺灣智慧優選)",
-        "00981A": "00981A (統一台股增長)\n[4/7以後有資料]",
+        "00981A": "00981A (統一台股增長)",
         "00982A": "00982A (群益台灣精選強棒)",
         "00991A": "00991A (復華未來50)",
         "00992A": "00992A (群益台灣科技創新)"
@@ -59,12 +76,39 @@ else:
     # 從資料庫撈取實際存在的代號，並依照字典順序排列
     available_etf_codes = sorted(df_raw['ETF_Code'].unique())
     selected_etfs = []
+
+    # 全選功能的跨頁面狀態控管
+    if "select_all" not in st.session_state:
+        st.session_state.select_all = True
+
+    def toggle_all():
+        for code in available_etf_codes:
+            st.session_state[f"cb_{code}"] = st.session_state.select_all
+
+    st.sidebar.checkbox("✅ 全選所有 ETF", key="select_all", on_change=toggle_all)
     
     for code in available_etf_codes:
-        # 如果 code 不在字典裡，就顯示原始代號
         label = etf_names.get(code, f"{code} (未定義名稱)")
-        if st.sidebar.checkbox(label, value=True, key=f"cb_{code}"):
+        
+        # 個別子項目的狀態初始化
+        if f"cb_{code}" not in st.session_state:
+            st.session_state[f"cb_{code}"] = st.session_state.select_all
+            
+        if st.sidebar.checkbox(label, key=f"cb_{code}"):
             selected_etfs.append(code)
+
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("""
+**💡 資料起始日參考：**
+| ETF 代號 | 最早資料日期 |
+| :--- | :--- |
+| **00980A** | 2025-05-02 |
+| **00982A** | 2025-05-21 |
+| **00981A** | 2025-05-26 |
+| **00991A** | 2025-12-10 |
+| **00992A** | 2025-12-29 |
+| **00400A** | 2026-04-02 |
+""")
 
     # 防呆：至少勾選一項
     if not selected_etfs:
