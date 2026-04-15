@@ -17,6 +17,11 @@ if os.path.exists("logo.png"):
         logo_base64 = base64.b64encode(image_file.read()).decode()
 
 title_html = f"""
+<style>
+#MainMenu {{visibility: hidden;}}
+footer {{visibility: hidden;}}
+header {{visibility: hidden;}}
+</style>
 <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
     <h1 style="margin: 0;">📊 主動式ETF：籌碼流向儀表板</h1>
     <img src="data:image/png;base64,{logo_base64}" width="40" style="object-fit: contain;">
