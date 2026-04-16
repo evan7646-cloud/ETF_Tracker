@@ -16,7 +16,7 @@ def bulk_download_from_tv():
         print("找不到 unique_stocks_with_exchange.csv！")
         return
         
-    df_stocks = pd.read_csv(csv_path)
+    df_stocks = pd.read_csv(csv_path, dtype={'Stock_Symbol': str})
     
     # 初始化 TradingView (未登入預設就可以用了)
     tv = TvDatafeed()                

@@ -35,14 +35,21 @@ jobs:
         run: |
           python crawler.py
 
-      - name: 💾 將更新後的資料庫 (DB) 推送回 GitHub
+      - name: 📈 執行個股名單與股價更新 (確保在持股更新後執行)
+        run: |
+          python price_downloader/get_unique_stocks.py
+          python price_downloader/download_compare.py
+
+      - name: 💾 將更新後的資料庫與股價資料推送回 GitHub
         run: |
           # 設定虛擬機器人的 Git 身份
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           
-          # 將有變動的資料庫加入追蹤
+          # 將有變動的資料庫與所有下載下來的股價資料加入追蹤
           git add etf_holdings.db
+          git add price_downloader/unique_stocks_with_exchange.csv
+          git add price_downloader/hist_prices/
           
           # 檢查是否有更新，如果有就 Commit 並 Push
           # [skip ci] 標籤是為了防止 Push 後又引發無限迴圈觸發 Action

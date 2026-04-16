@@ -7,3 +7,5 @@ streamlit
 altair
 beautifulsoup4
 plotly
+requests
+tvDatafeed

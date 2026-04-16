@@ -1,4 +1,6 @@
 ﻿Stock_Symbol,Stock_Name,Exchange
+0050,元大台灣50,TWSE
+0052,富邦科技,TWSE
 1210,大成,TWSE
 1303,南亞塑膠,TWSE
 1319,東陽實業廠,TWSE
@@ -126,8 +128,6 @@
 4966,譜瑞-KY,TPEX
 4979,華星光,TPEX
 4991,環宇-KY,TPEX
-50,元大台灣50,TWSE
-52,富邦科技,TWSE
 5234,達興材料,TWSE
 5269,祥碩,TWSE
 5274,信驊科技,TPEX
@@ -153,6 +153,7 @@
 6223,旺矽科技,TPEX
 6239,力成科技,TWSE
 6257,矽格,TWSE
+6271,同欣電,TWSE
 6274,台燿科技,TPEX
 6278,台表科,TWSE
 6285,啟碁,TWSE
