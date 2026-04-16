@@ -23,10 +23,12 @@ title_html = f"""
 footer {{visibility: hidden;}}
 header {{visibility: hidden;}}
 </style>
-<div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-    <h1 style="margin: 0;">📊 主動式ETF：籌碼流向儀表板</h1>
-    <img src="data:image/png;base64,{logo_base64}" width="40" style="object-fit: contain;">
-    <span style="color: #CD002A; font-weight: 800; font-size: 22px;">國票期貨法人部製作</span>
+<div style="margin-bottom: 20px;">
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+        <img src="data:image/png;base64,{logo_base64}" width="32" style="object-fit: contain;">
+        <span style="color: #CD002A; font-weight: 900; font-size: 28px;">國票期貨法人部製作</span>
+    </div>
+    <h2 style="margin: 0; font-size: 28px;">📊 主動式ETF：籌碼流向儀表板</h2>
 </div>
 """
 st.markdown(title_html, unsafe_allow_html=True)
