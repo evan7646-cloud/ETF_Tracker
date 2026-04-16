@@ -293,8 +293,27 @@ else:
         sel_symbol = display_df.iloc[row_idx]['股票代號']
         sel_name = display_df.iloc[row_idx]['股票名稱']
         
-        st.markdown(f"### 🔍 {sel_name} ({sel_symbol}) - 各 ETF 每日權重動態")
+        st.markdown(f"### 🔍 {sel_name} ({sel_symbol}) - 區間走勢與權重動態")
         
+        import os
+        import pandas as pd
+        import plotly.graph_objects as go
+        from plotly.subplots import make_subplots
+        import plotly.express as px
+
+        csv_path = os.path.join("price_downloader", "hist_prices", f"{sel_symbol}.csv")
+        has_kline = False
+        df_range = pd.DataFrame()
+        
+        if os.path.exists(csv_path):
+            df_price = pd.read_csv(csv_path)
+            df_price['Date'] = pd.to_datetime(df_price['Date'])
+            d1 = pd.to_datetime(date_prev)
+            d2 = pd.to_datetime(date_latest)
+            df_range = df_price[(df_price['Date'] >= d1) & (df_price['Date'] <= d2)].copy()
+            if not df_range.empty:
+                has_kline = True
+
         df_stock = df_filtered[
             (df_filtered['Stock_Symbol'] == sel_symbol) & 
             (df_filtered['Date'] >= date_prev) & 
@@ -302,18 +321,82 @@ else:
         ].copy()
         
         if not df_stock.empty:
-            chart = alt.Chart(df_stock).mark_line(point=True, strokeWidth=3).encode(
-                x=alt.X('Date:T', title="日期", axis=alt.Axis(format="%Y-%m-%d")),
-                y=alt.Y('Weight:Q', title="單一 ETF 權重 (%)", scale=alt.Scale(zero=False)),
-                color=alt.Color('ETF_Code:N', title="ETF"),
-                tooltip=[alt.Tooltip('Date:T', title="日期", format="%Y-%m-%d"), 'ETF_Code', alt.Tooltip('Weight:Q', title="權重(%)", format='.2f')]
-            ).properties(height=350)
-            st.altair_chart(chart, use_container_width=True)
-            
+            df_stock['Date'] = pd.to_datetime(df_stock['Date'])
+            if has_kline:
+                # 建立上下聯動的雙視窗 (共用 X 軸)
+                fig = make_subplots(
+                    rows=2, cols=1, 
+                    shared_xaxes=True, 
+                    vertical_spacing=0.08,
+                    row_heights=[0.5, 0.5]
+                )
+                
+                # 繪製上面的 K 線圖
+                fig.add_trace(go.Candlestick(
+                    x=df_range['Date'],
+                    open=df_range['Open'],
+                    high=df_range['High'],
+                    low=df_range['Low'],
+                    close=df_range['Close'],
+                    name="K線走勢",
+                    increasing_line_color='#ef313d', increasing_fillcolor='#ef313d', 
+                    decreasing_line_color='#36a555', decreasing_fillcolor='#36a555'
+                ), row=1, col=1)
+                
+                # 繪製下面的各 ETF 折線圖
+                etf_codes = df_stock['ETF_Code'].unique()
+                color_seq = px.colors.qualitative.Plotly
+                for i, code in enumerate(etf_codes):
+                    sub_df = df_stock[df_stock['ETF_Code'] == code]
+                    fig.add_trace(go.Scatter(
+                        x=sub_df['Date'],
+                        y=sub_df['Weight'],
+                        mode='lines+markers',
+                        name=code,
+                        line=dict(width=3, color=color_seq[i % len(color_seq)]),
+                        hovertemplate='ETF: ' + code + '<br>權重: %{y:.2f}%<extra></extra>'
+                    ), row=2, col=1)
+                
+                fig.update_layout(
+                    xaxis_rangeslider_visible=False,
+                    height=750,
+                    margin=dict(t=30, l=10, r=10, b=10),
+                    hovermode="x unified", # 開啟全局十字鼠標垂直連動線 (最重要的一步！)
+                    legend_title="圖例標籤"
+                )
+                fig.update_yaxes(title_text="股價 (TWD)", row=1, col=1)
+                fig.update_yaxes(title_text="權重 (%)", row=2, col=1)
+                
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                # 若無 K 線僅單獨顯示折線
+                fig = go.Figure()
+                etf_codes = df_stock['ETF_Code'].unique()
+                color_seq = px.colors.qualitative.Plotly
+                for i, code in enumerate(etf_codes):
+                    sub_df = df_stock[df_stock['ETF_Code'] == code]
+                    fig.add_trace(go.Scatter(
+                        x=sub_df['Date'],
+                        y=sub_df['Weight'],
+                        mode='lines+markers',
+                        name=code,
+                        line=dict(width=3, color=color_seq[i % len(color_seq)])
+                    ))
+                fig.update_layout(
+                    title=f"📊 {sel_name} 各 ETF 每日權重佔比",
+                    height=450,
+                    hovermode="x unified",
+                    xaxis_title="日期",
+                    yaxis_title="權重 (%)",
+                    margin=dict(t=50, l=10, r=10, b=10)
+                )
+                st.plotly_chart(fig, use_container_width=True)
+                st.warning("此區間內無 OHLC 資料，僅顯示權重折線圖。")
+                
             pivot_df = df_stock.pivot(index='Date', columns='ETF_Code', values='Weight').fillna(0).sort_index(ascending=False)
             st.dataframe(pivot_df.style.format("{:.2f}%"), use_container_width=True)
         else:
-            st.info("此區間內無該股票明細數據。")
+            st.info("此區間內無該股票的歷史異動數據。")
 
     # ==========================================
     # 7. 成分股權重與區間漲跌幅熱力圖 (置於最底)
