@@ -2,6 +2,7 @@ import sqlite3
 import pandas as pd
 import streamlit as st
 import altair as alt
+import plotly.express as px
 import base64
 import os
 
@@ -195,6 +196,8 @@ else:
     # 5. 視覺化圖表
     # ==========================================
     st.markdown(f"### 📅 比較區間: **{date_prev}** ➔ **{date_latest}**")
+
+
     
     # 標記處理
     top_buy = top_buy.copy()
@@ -311,3 +314,77 @@ else:
             st.dataframe(pivot_df.style.format("{:.2f}%"), use_container_width=True)
         else:
             st.info("此區間內無該股票明細數據。")
+
+    # ==========================================
+    # 7. 成分股權重與區間漲跌幅熱力圖 (置於最底)
+    # ==========================================
+    st.markdown("---")
+    st.markdown("<h3 style='font-size: 28px;'>🗺️ 成分股權重與區間漲跌幅熱力圖</h3>", unsafe_allow_html=True)
+    
+    @st.cache_data(ttl=600)
+    def calc_price_change(stock_symbol, d_prev, d_latest):
+        import os
+        import pandas as pd
+        csv_path = os.path.join("price_downloader", "hist_prices", f"{stock_symbol}.csv")
+        if not os.path.exists(csv_path): return 0.0
+        try:
+            df_price = pd.read_csv(csv_path)
+            df_price['Date'] = pd.to_datetime(df_price['Date'])
+            df_price = df_price.sort_values(by='Date')
+            d1 = pd.to_datetime(d_prev)
+            d2 = pd.to_datetime(d_latest)
+            df_range = df_price[(df_price['Date'] >= d1) & (df_price['Date'] <= d2)]
+            if len(df_range) < 1: return 0.0
+            
+            start_price = df_range.iloc[0]['Close']
+            end_price = df_range.iloc[-1]['Close']
+            if start_price > 0:
+                return (end_price - start_price) / start_price * 100
+        except:
+            pass
+        return 0.0
+
+    # 針對篩選後的合併資料計算每一檔股價的漲跌幅
+    if '漲跌幅(%)' not in merged.columns:
+        merged['漲跌幅(%)'] = merged['Stock_Symbol'].apply(lambda x: calc_price_change(x, date_prev, date_latest))
+    
+    tm_df = merged[merged['Weight_Latest'] > 0].copy()
+    if not tm_df.empty:
+        tm_df['Text_Format'] = tm_df['漲跌幅(%)'].apply(lambda x: f"{x:+.2f}%")
+        
+        # 根據你提供的附圖自訂色階，並固定範圍落在 -10% 到 10%
+        custom_color_scale = [
+            (0.00, "#09622a"), # -10% (深綠)
+            (0.05, "#157f35"), # -9%
+            (0.20, "#2fa854"), # -6%
+            (0.35, "#42c067"), # -3%
+            (0.50, "#c2c6cc"), # 0% (淺灰)
+            (0.65, "#ff7d86"), # +3%
+            (0.80, "#f63344"), # +6%
+            (0.95, "#a9262d"), # +9%
+            (1.00, "#8e181e")  # +10% (深紅)
+        ]
+
+        fig = px.treemap(
+            tm_df,
+            path=['Stock_Name'], 
+            values='Weight_Latest',
+            color='漲跌幅(%)',
+            custom_data=['Text_Format'],
+            range_color=[-10, 10], # 鎖定比例尺，讓漸層分佈不會因為極端值跑掉
+            color_continuous_scale=custom_color_scale,
+            color_continuous_midpoint=0
+        )
+        fig.update_layout(margin=dict(t=30, l=10, r=10, b=10), height=650) # 高度調大一點更好看
+        fig.update_traces(
+            texttemplate="%{label}<br>%{customdata[0]}", 
+            textfont=dict(color='white'), 
+            textposition='middle center', # 強制垂直置中
+            hovertemplate='<b>%{label}</b><br>權重占比: %{value:.2f}%<br>區間漲跌幅: %{color:.2f}%',
+            marker=dict(line=dict(color='#000000', width=1.5)) # 讓每個方塊之間使用黑色分隔線
+        )
+        
+        # 關閉 Streamlit 預設主題 (theme=None)
+        st.plotly_chart(fig, use_container_width=True, theme=None)
+    else:
+        st.info("目前選擇的日期或標的無有效的權重資料繪製熱力圖。")

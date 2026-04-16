@@ -6,3 +6,4 @@ webdriver-manager
 streamlit
 altair
 beautifulsoup4
+plotly
