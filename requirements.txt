@@ -8,4 +8,4 @@ altair
 beautifulsoup4
 plotly
 requests
-tvDatafeed
+tvdatafeed
