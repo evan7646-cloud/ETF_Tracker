@@ -8,4 +8,4 @@ altair
 beautifulsoup4
 plotly
 requests
-tvdatafeed
+git+https://github.com/rongardF/tvdatafeed.git
