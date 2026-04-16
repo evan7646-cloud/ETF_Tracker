@@ -400,6 +400,9 @@ else:
                 fig.update_yaxes(title_text="股價 (TWD)", row=1, col=1)
                 fig.update_yaxes(title_text="權重 (%)", row=2, col=1)
                 
+                # 強制使用類別型態，消去所有假日/無交易日的斷層點，並設定刻度數量避免太密集
+                fig.update_xaxes(type='category', categoryorder='category ascending', nticks=15)
+                
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 # 若無 K 線僅單獨顯示折線
@@ -424,6 +427,8 @@ else:
                     yaxis_title="權重 (%)",
                     margin=dict(t=50, l=10, r=10, b=10)
                 )
+                # 強制使用類別型態，消去假日空白斷層
+                fig.update_xaxes(type='category', categoryorder='category ascending', nticks=15)
                 st.plotly_chart(fig, use_container_width=True)
                 st.warning("此區間內無 OHLC 資料，僅顯示權重折線圖。")
                 
