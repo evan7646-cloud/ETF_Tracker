@@ -76,9 +76,9 @@ else:
             default_prev = pd.to_datetime(all_dates[1]).date()
             
             with date_col1:
-                date_latest_obj = st.date_input("🗓️ 最新日期 (T)", value=default_latest, min_value=min_date, max_value=max_date, format="YYYY-MM-DD")
-            with date_col2:
                 date_prev_obj = st.date_input("🗓️ 過去日期 (T-N)", value=default_prev, min_value=min_date, max_value=max_date, format="YYYY-MM-DD")
+            with date_col2:
+                date_latest_obj = st.date_input("🗓️ 最新日期 (T)", value=default_latest, min_value=min_date, max_value=max_date, format="YYYY-MM-DD")
             
             date_latest = date_latest_obj.strftime('%Y-%m-%d')
             date_prev = date_prev_obj.strftime('%Y-%m-%d')
