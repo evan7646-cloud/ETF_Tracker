@@ -50,6 +50,7 @@ jobs:
           git add etf_holdings.db
           git add price_downloader/unique_stocks_with_exchange.csv
           git add price_downloader/hist_prices/
+          git add --all price_downloader/missing_stocks.txt || true
           
           # 檢查是否有更新，如果有就 Commit 並 Push
           # [skip ci] 標籤是為了防止 Push 後又引發無限迴圈觸發 Action

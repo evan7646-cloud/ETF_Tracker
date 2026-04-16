@@ -76,9 +76,18 @@ def bulk_download_from_tv():
                 time.sleep(2) # 發生錯誤的話多延遲 2 秒再跑下一檔
 
     # 當跳出迴圈時代表跑滿 10 次還是有失敗
-    final_fail_count = len([f for f in pending_stocks if not os.path.exists(f[3])])
-    if final_fail_count > 0:
-        print(f"⚠️ 已達到最大重試次數 ({max_retries})，仍有 {final_fail_count} 檔股票無法成功下載。")
+    final_fails = [f[2] for f in pending_stocks if not os.path.exists(f[3])]
+    missing_file = os.path.join(current_dir, "missing_stocks.txt")
+    
+    if len(final_fails) > 0:
+        print(f"⚠️ 已達到最大重試次數 ({max_retries})，仍有 {len(final_fails)} 檔股票無法成功下載。")
+        # 將缺失的代碼寫出給 Dashboard 顯示警告
+        with open(missing_file, "w", encoding="utf-8") as f:
+            f.write("\n".join(final_fails))
+    else:
+        # 若全部成功，則清空或移除上次的錯誤紀錄
+        if os.path.exists(missing_file):
+            os.remove(missing_file)
 
 if __name__ == "__main__":
     bulk_download_from_tv()

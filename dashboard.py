@@ -83,6 +83,14 @@ else:
         st.sidebar.info("等待資料累積中...")
         st.stop()
 
+    import os
+    missing_path = os.path.join("price_downloader", "missing_stocks.txt")
+    if os.path.exists(missing_path):
+        with open(missing_path, "r", encoding="utf-8") as f:
+            missing_syms = [s.strip() for s in f.readlines() if s.strip()]
+        if missing_syms:
+            st.sidebar.error(f"⚠️ **無股價資料之成分股：**\n\n{', '.join(missing_syms)}\n\n*(資料來源無法對應)*")
+
     st.sidebar.markdown("---")
     
     # --- ETF 勾選區 (列在日期下方) ---
@@ -139,6 +147,16 @@ else:
         st.error("❌ 請至少勾選一檔 ETF！")
         st.stop()
 
+    # 自動檢查是否踩到 ETF 創立前區間
+    warning_msgs = []
+    for code in selected_etfs:
+        min_date = df_raw[df_raw['ETF_Code'] == code]['Date'].min()
+        if min_date > date_prev:
+            name_label = etf_names.get(code, code).split(' ')[0] # 擷取代號
+            warning_msgs.append(f"- **{name_label}** (最舊紀錄：{min_date})")
+            
+    if warning_msgs:
+        st.warning(f"⚠️ **注意：您所選的比較基準日 (`{date_prev}`) 早於以下 ETF 的創立/建檔日期：**\n\n" + "\n".join(warning_msgs) + "\n\n*(這些 ETF 將呈現從 0% 建倉至滿水位的異常巨大增幅，敬請留意！)*")
     # ==========================================
     # 4. 資料運算與合併
     # ==========================================
@@ -347,11 +365,12 @@ else:
                 etf_codes = df_stock['ETF_Code'].unique()
                 color_seq = px.colors.qualitative.Plotly
                 for i, code in enumerate(etf_codes):
-                    sub_df = df_stock[df_stock['ETF_Code'] == code]
+                    sub_df = df_stock[df_stock['ETF_Code'] == code].sort_values('Date')
                     fig.add_trace(go.Scatter(
                         x=sub_df['Date'],
                         y=sub_df['Weight'],
                         mode='lines+markers',
+                        line_shape='hv',
                         name=code,
                         line=dict(width=3, color=color_seq[i % len(color_seq)]),
                         hovertemplate='ETF: ' + code + '<br>權重: %{y:.2f}%<extra></extra>'
@@ -374,11 +393,12 @@ else:
                 etf_codes = df_stock['ETF_Code'].unique()
                 color_seq = px.colors.qualitative.Plotly
                 for i, code in enumerate(etf_codes):
-                    sub_df = df_stock[df_stock['ETF_Code'] == code]
+                    sub_df = df_stock[df_stock['ETF_Code'] == code].sort_values('Date')
                     fig.add_trace(go.Scatter(
                         x=sub_df['Date'],
                         y=sub_df['Weight'],
                         mode='lines+markers',
+                        line_shape='hv',
                         name=code,
                         line=dict(width=3, color=color_seq[i % len(color_seq)])
                     ))
