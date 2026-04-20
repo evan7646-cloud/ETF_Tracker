@@ -136,32 +136,32 @@ else:
             | **00400A** | 2026-04-02 |
             """)
 
-# ==========================================
-# 網頁定義標題 (原本在最上，移至控制面板下方以免手機佔版面)
-# ==========================================
-title_html = f"""
-<style>
-#MainMenu {{visibility: hidden;}}
-footer {{visibility: hidden;}}
-header {{visibility: hidden;}}
-</style>
-<div style="margin-bottom: 20px;">
-    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-        <img src="data:image/png;base64,{logo_base64}" width="32" style="object-fit: contain;">
-        <span style="color: #CD002A; font-weight: 900; font-size: 28px;">國票期貨法人部製作</span>
+    # ==========================================
+    # 網頁定義標題 (原本在最上，移至控制面板下方以免手機佔版面)
+    # ==========================================
+    title_html = f"""
+    <style>
+    #MainMenu {{visibility: hidden;}}
+    footer {{visibility: hidden;}}
+    header {{visibility: hidden;}}
+    </style>
+    <div style="margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+            <img src="data:image/png;base64={logo_base64}" width="32" style="object-fit: contain;">
+            <span style="color: #CD002A; font-weight: 900; font-size: 28px;">國票期貨法人部製作</span>
+        </div>
+        <h2 style="margin: 0; font-size: 28px;">📊 主動式ETF：籌碼流向儀表板</h2>
     </div>
-    <h2 style="margin: 0; font-size: 28px;">📊 主動式ETF：籌碼流向儀表板</h2>
-</div>
-"""
-st.markdown(title_html, unsafe_allow_html=True)
-
-st.markdown("""
-💡 **本儀表板提供四大核心功能：**
-1. 🏆 **持股變動綜合排行**：投信資金集中押注或大幅撤出的熱門標的。
-2. 📝 **成分股調倉明細單**：列出各支 ETF 對特定股票的加減碼操作 (包含前次與最新權重狀態)。
-3. 📈 **歷史 K 線與權重對照圖**：將股價走勢結合階梯式的持股權重變動。
-4. 🔲 **持股熱力圖**：顏色代表漲跌停，格子大小代表持股權重。
-""")
+    """
+    st.markdown(title_html, unsafe_allow_html=True)
+    
+    st.markdown("""
+    💡 **本儀表板提供四大核心功能：**
+    1. 🏆 **持股變動綜合排行**：投信資金集中押注或大幅撤出的熱門標的。
+    2. 📝 **成分股調倉明細單**：列出各支 ETF 對特定股票的加減碼操作 (包含前次與最新權重狀態)。
+    3. 📈 **歷史 K 線與權重對照圖**：將股價走勢結合階梯式的持股權重變動。
+    4. 🔲 **持股熱力圖**：顏色代表漲跌停，格子大小代表持股權重。
+    """)
 
     # 防呆：至少勾選一項
     if not selected_etfs:
