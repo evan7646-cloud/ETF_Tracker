@@ -1,0 +1,48 @@
+name: 📈 Intraday Price Update
+
+on:
+  # 每小時整點執行 (UTC 01:00~06:00 = 台灣 09:00~14:00)，週一到週五
+  schedule:
+    - cron: '0 1-6 * * 1-5'
+  
+  # 手動觸發按鈕 (方便測試)
+  workflow_dispatch:
+
+# 給予 GitHub Bot 推送權限
+permissions:
+  contents: write
+
+jobs:
+  update-prices:
+    runs-on: ubuntu-latest # 使用免費 Linux 虛擬機
+
+    steps:
+      - name: 📥 檢出程式碼
+        uses: actions/checkout@v4
+
+      - name: 🐍 設定 Python 3.10 環境
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: 📦 安裝必要套件
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas git+https://github.com/rongardF/tvdatafeed.git
+
+      - name: 📈 執行盤中股價更新
+        run: |
+          python price_downloader/update_intraday.py
+
+      - name: 💾 推送更新後的股價資料
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          
+          # 加入更新過的 CSV 與時間戳
+          git add price_downloader/hist_prices/
+          git add price_downloader/last_price_update.txt || true
+          
+          # 如果沒有變動 (假日) 就跳過 commit
+          git commit -m "📈 Intraday price update [skip ci]" || echo "今日無股價更新 (可能為假日)"
+          git push

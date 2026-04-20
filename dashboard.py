@@ -46,10 +46,18 @@ st.markdown("""
 # ==========================================
 @st.cache_data(ttl=60)
 def load_data():
-    conn = sqlite3.connect('etf_holdings.db')
-    df = pd.read_sql("SELECT * FROM daily_weights", conn)
-    conn.close()
+    conn = sqlite3.connect('etf_holdings.db') # 連線到 SQLite 資料庫
+    df = pd.read_sql("SELECT * FROM daily_weights", conn) # 讀取全部權重資料
+    conn.close() # 關閉連線
     return df
+
+def get_last_price_update():
+    """讀取盤中更新腳本寫入的時間戳"""
+    ts_path = os.path.join("price_downloader", "last_price_update.txt") # 時間戳檔案路徑
+    if os.path.exists(ts_path): # 檔案存在才讀取
+        with open(ts_path, 'r') as f: # 開啟檔案
+            return f.read().strip() # 回傳時間字串
+    return None # 找不到檔案回傳 None
 
 df_raw = load_data()
 
@@ -325,7 +333,9 @@ else:
         sel_symbol = display_df.iloc[row_idx]['股票代號']
         sel_name = display_df.iloc[row_idx]['股票名稱']
         
-        st.markdown(f"### 🔍 {sel_name} ({sel_symbol}) - 區間走勢與權重動態")
+        price_ts = get_last_price_update() # 讀取股價最近更新時間
+        ts_badge = f"　<span style='font-size:14px; color:#888;'>📡 股價更新: {price_ts}</span>" if price_ts else "" # 有時間戳就顯示徽章
+        st.markdown(f"### 🔍 {sel_name} ({sel_symbol}) - 區間走勢與權重動態{ts_badge}", unsafe_allow_html=True) # 標題含更新時間
         
         import os
         import pandas as pd
@@ -456,7 +466,9 @@ else:
     # 7. 成分股權重與區間漲跌幅熱力圖 (置於最底)
     # ==========================================
     st.markdown("---")
-    st.markdown("<h3 style='font-size: 28px;'>🗺️ 成分股權重與區間漲跌幅熱力圖</h3>", unsafe_allow_html=True)
+    price_ts_hm = get_last_price_update() # 讀取股價最近更新時間 (為熱力圖用)
+    ts_hm_text = f"　<span style='font-size:14px; color:#888;'>📡 股價更新: {price_ts_hm}</span>" if price_ts_hm else "" # 有時間戳就顯示
+    st.markdown(f"<h3 style='font-size: 28px;'>🗺️ 成分股權重與區間漲跌幅熱力圖{ts_hm_text}</h3>", unsafe_allow_html=True) # 標題含更新時間
     
     @st.cache_data(ttl=600)
     def calc_price_change(stock_symbol, d_prev, d_latest):
