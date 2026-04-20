@@ -68,11 +68,13 @@ else:
     df_raw['Date'] = pd.to_datetime(df_raw['Date'], format='mixed').dt.strftime('%Y-%m-%d')
     
     # ==========================================
-    # 3. 主畫面控制項 (日期 + ETF 勾選)
+    # 3. 主畫面控制項 (日期 + ETF 勾選) -> 移至側邊欄
     # ==========================================
-    with st.expander("⚙️ 打開控制面板 (選擇比較日期與過濾 ETF)", expanded=True):
+    st.info("💡 **操作提示**：請在左方側邊欄 (手機版請點擊左上角 `>` 展開) 設定比較日期與觀測的 ETF。")
+
+    with st.sidebar:
+        st.markdown("## ⚙️ 控制面板")
         st.subheader("📅 日期與區間設定")
-        date_col1, date_col2 = st.columns(2)
         
         # --- 日期選擇 (日曆模式) ---
         all_dates = sorted(df_raw['Date'].unique(), reverse=True)
@@ -83,20 +85,19 @@ else:
             default_latest = max_date
             default_prev = pd.to_datetime(all_dates[1]).date()
             
-            with date_col1:
-                date_prev_obj = st.date_input("🗓️ 過去日期 (T-N)", value=default_prev, min_value=min_date, max_value=max_date, format="YYYY-MM-DD")
-            with date_col2:
-                date_latest_obj = st.date_input("🗓️ 最新日期 (T)", value=default_latest, min_value=min_date, max_value=max_date, format="YYYY-MM-DD")
+            # 側邊欄比較窄，改為上下排列
+            date_prev_obj = st.date_input("🗓️ 過去日期 (T-N)", value=default_prev, min_value=min_date, max_value=max_date, format="YYYY-MM-DD")
+            date_latest_obj = st.date_input("🗓️ 最新日期 (T)", value=default_latest, min_value=min_date, max_value=max_date, format="YYYY-MM-DD")
             
             date_latest = date_latest_obj.strftime('%Y-%m-%d')
             date_prev = date_prev_obj.strftime('%Y-%m-%d')
             
             # 防呆：避免使用者選到假日
             if date_latest not in all_dates:
-                st.warning(f"⚠️ {date_latest} 沒有基金交易紀錄 (可能是假日)，請重新選擇日期！")
+                st.warning(f"⚠️ {date_latest} 無交易紀錄，請重選！")
                 st.stop()
             if date_prev not in all_dates:
-                st.warning(f"⚠️ {date_prev} 沒有基金交易紀錄 (可能是假日)，請重新選擇日期！")
+                st.warning(f"⚠️ {date_prev} 無交易紀錄，請重選！")
                 st.stop()
         else:
             st.info("等待資料累積中...")
@@ -109,7 +110,7 @@ else:
             with open(missing_path, "r", encoding="utf-8") as f:
                 missing_syms = [s.strip() for s in f.readlines() if s.strip()]
             if missing_syms:
-                st.error(f"⚠️ **無股價資料之成分股：**\n\n{', '.join(missing_syms)}\n\n*(資料來源無法對應)*")
+                st.error(f"⚠️ **無股價資料之成分股：**\n\n{', '.join(missing_syms)}\n\n*(請確認)*")
 
         st.markdown("---")
 
@@ -133,28 +134,22 @@ else:
             for code in available_etf_codes:
                 st.session_state[f"cb_{code}"] = st.session_state.select_all
 
-        # 第一排：全選
+        # 全選
         st.checkbox("✅ 全選所有 ETF", key="select_all", on_change=toggle_all)
         
-        # 第二與第三排：各 3 檔 (共 6 檔)
-        row1_cols = st.columns(3)
-        row2_cols = st.columns(3)
-        
+        # 側邊欄較窄，改為垂直排列
         for idx, code in enumerate(available_etf_codes):
             label = etf_names.get(code, f"{code} (未定義名稱)")
             
             if f"cb_{code}" not in st.session_state:
                 st.session_state[f"cb_{code}"] = st.session_state.select_all
-                
-            # 決定應該放在哪一欄
-            target_col = row1_cols[idx] if idx < 3 else row2_cols[idx - 3]
             
-            if target_col.checkbox(label, key=f"cb_{code}"):
+            if st.checkbox(label, key=f"cb_{code}"):
                 selected_etfs.append(code)
                 
-        with st.popover("💡 點此查看 ETF 起始日參考"):
+        with st.popover("💡 ETF 起始日參考"):
             st.markdown("""
-            | ETF 代號 | 最早資料日期 |
+            | 代號 | 最早資料日 |
             | :--- | :--- |
             | **00980A** | 2025-05-02 |
             | **00982A** | 2025-05-21 |
