@@ -355,53 +355,68 @@ else:
         if not df_stock.empty:
             df_stock['Date'] = pd.to_datetime(df_stock['Date'])
             if has_kline:
+                # 取 K 線與權重的日期聯集，確保兩張子圖 X 軸完全對齊
+                kline_dates = set(df_range['Date'].dt.strftime('%Y-%m-%d')) # K 線日期集合
+                weight_dates = set(df_stock['Date'].dt.strftime('%Y-%m-%d')) # 權重日期集合
+                all_dates_union = sorted(kline_dates | weight_dates) # 取聯集並排序
+                
+                # 將日期欄統一轉為字串，以便使用 category 模式對齊
+                df_range = df_range.copy() # 避免 SettingWithCopyWarning
+                df_range['Date_str'] = df_range['Date'].dt.strftime('%Y-%m-%d') # 轉字串方便類別軸
+                df_stock['Date_str'] = df_stock['Date'].dt.strftime('%Y-%m-%d') # 同步轉字串
+
                 # 建立上下聯動的雙視窗 (共用 X 軸)
                 fig = make_subplots(
                     rows=2, cols=1, 
-                    shared_xaxes=True, 
-                    vertical_spacing=0.08,
-                    row_heights=[0.5, 0.5]
+                    shared_xaxes=True, # 共用 X 軸確保十字線聯動
+                    vertical_spacing=0.08, # 上下間距
+                    row_heights=[0.5, 0.5] # 上下等高
                 )
                 
-                # 繪製上面的 K 線圖
+                # 繪製上面的 K 線圖 (使用字串日期)
                 fig.add_trace(go.Candlestick(
-                    x=df_range['Date'],
+                    x=df_range['Date_str'], # 改用字串日期
                     open=df_range['Open'],
                     high=df_range['High'],
                     low=df_range['Low'],
                     close=df_range['Close'],
                     name="K線走勢",
-                    increasing_line_color='#ef313d', increasing_fillcolor='#ef313d', 
-                    decreasing_line_color='#36a555', decreasing_fillcolor='#36a555'
+                    increasing_line_color='#ef313d', increasing_fillcolor='#ef313d', # 台股紅漲
+                    decreasing_line_color='#36a555', decreasing_fillcolor='#36a555' # 台股綠跌
                 ), row=1, col=1)
                 
-                # 繪製下面的各 ETF 折線圖
-                etf_codes = df_stock['ETF_Code'].unique()
-                color_seq = px.colors.qualitative.Plotly
+                # 繪製下面的各 ETF 折線圖 (同樣用字串日期)
+                etf_codes = df_stock['ETF_Code'].unique() # 取得所有 ETF 代碼
+                color_seq = px.colors.qualitative.Plotly # 預設配色方案
                 for i, code in enumerate(etf_codes):
-                    sub_df = df_stock[df_stock['ETF_Code'] == code].sort_values('Date')
+                    sub_df = df_stock[df_stock['ETF_Code'] == code].sort_values('Date') # 按日期排序
                     fig.add_trace(go.Scatter(
-                        x=sub_df['Date'],
+                        x=sub_df['Date_str'], # 改用字串日期
                         y=sub_df['Weight'],
                         mode='lines+markers',
-                        line_shape='hv',
+                        line_shape='hv', # 階梯線連接
                         name=code,
                         line=dict(width=3, color=color_seq[i % len(color_seq)]),
                         hovertemplate='ETF: ' + code + '<br>權重: %{y:.2f}%<extra></extra>'
                     ), row=2, col=1)
                 
                 fig.update_layout(
-                    xaxis_rangeslider_visible=False,
+                    xaxis_rangeslider_visible=False, # 關閉 K 線底部的 range slider
                     height=750,
                     margin=dict(t=30, l=10, r=10, b=10),
                     hovermode="x unified", # 開啟全局十字鼠標垂直連動線 (最重要的一步！)
                     legend_title="圖例標籤"
                 )
-                fig.update_yaxes(title_text="股價 (TWD)", row=1, col=1)
-                fig.update_yaxes(title_text="權重 (%)", row=2, col=1)
+                fig.update_yaxes(title_text="股價 (TWD)", row=1, col=1) # 上圖 Y 軸標題
+                fig.update_yaxes(title_text="權重 (%)", row=2, col=1) # 下圖 Y 軸標題
                 
-                # 強制使用類別型態，消去所有假日/無交易日的斷層點，並設定刻度數量避免太密集
-                fig.update_xaxes(type='category', categoryorder='category ascending', nticks=15)
+                # 強制使用統一的類別軸：用聯集日期作為 categoryarray，兩張圖共用同一組刻度
+                fig.update_xaxes(
+                    type='category', # 類別模式消除假日空白
+                    categoryorder='array', # 使用自訂陣列排序
+                    categoryarray=all_dates_union, # 統一的日期序列
+                    nticks=15 # 控制刻度密度
+                )
                 
                 st.plotly_chart(fig, use_container_width=True)
             else:
