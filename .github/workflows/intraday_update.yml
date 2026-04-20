@@ -46,6 +46,9 @@ jobs:
           git add price_downloader/hist_prices/
           git add price_downloader/last_price_update.txt || true
           
-          # 如果沒有變動 (假日) 就跳過 commit
-          git commit -m "📈 Intraday price update [skip ci]" || echo "今日無股價更新 (可能為假日)"
+          # 如果沒有變動 (假日) 就跳過 commit，不中斷 workflow
+          git commit -m "📈 Intraday price update [skip ci]" || exit 0
+          
+          # 先同步遠端最新狀態再推送 (避免因遠端有新 commit 而被拒絕)
+          git pull --rebase origin main
           git push
