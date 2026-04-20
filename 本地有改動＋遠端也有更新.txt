@@ -1,0 +1,6 @@
+git add -A && git commit -m "你的訊息" && git pull --rebase origin main && git push origin main
+
+
+#如果還沒 commit 就想先拉 DB：
+
+git stash && git pull --rebase origin main && git stash pop
