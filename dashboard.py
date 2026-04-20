@@ -17,30 +17,6 @@ if os.path.exists("logo.png"):
     with open("logo.png", "rb") as image_file:
         logo_base64 = base64.b64encode(image_file.read()).decode()
 
-title_html = f"""
-<style>
-#MainMenu {{visibility: hidden;}}
-footer {{visibility: hidden;}}
-header {{visibility: hidden;}}
-</style>
-<div style="margin-bottom: 20px;">
-    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-        <img src="data:image/png;base64,{logo_base64}" width="32" style="object-fit: contain;">
-        <span style="color: #CD002A; font-weight: 900; font-size: 28px;">國票期貨法人部製作</span>
-    </div>
-    <h2 style="margin: 0; font-size: 28px;">📊 主動式ETF：籌碼流向儀表板</h2>
-</div>
-"""
-st.markdown(title_html, unsafe_allow_html=True)
-
-st.markdown("""
-💡 **本儀表板提供四大核心功能：**
-1. 🏆 **持股變動綜合排行**：投信資金集中押注或大幅撤出的熱門標的。
-2. 📝 **成分股調倉明細單**：列出各支 ETF 對特定股票的加減碼操作 (包含前次與最新權重狀態)。
-3. 📈 **歷史 K 線與權重對照圖**：將股價走勢結合階梯式的持股權重變動。
-4. 🔲 **持股熱力圖**：顏色代表漲跌停，格子大小代表持股權重。
-""")
-
 # ==========================================
 # 2. 讀取與處理資料 (快取機制)
 # ==========================================
@@ -61,19 +37,16 @@ def get_last_price_update():
 
 df_raw = load_data()
 
+# ==========================================
+# 3. 主畫面控制項 (日期 + ETF 勾選) -> 改為置於最上方
+# ==========================================
 if df_raw.empty:
     st.warning("⚠️ 資料庫目前沒有資料，請先執行爬蟲程式！")
 else:
     # 強制格式化日期
     df_raw['Date'] = pd.to_datetime(df_raw['Date'], format='mixed').dt.strftime('%Y-%m-%d')
     
-    # ==========================================
-    # 3. 主畫面控制項 (日期 + ETF 勾選) -> 移至側邊欄
-    # ==========================================
-    st.info("💡 **操作提示**：請在左方側邊欄 (手機版請點擊左上角 `>` 展開) 設定比較日期與觀測的 ETF。")
-
-    with st.sidebar:
-        st.markdown("## ⚙️ 控制面板")
+    with st.expander("⚙️ 打開控制面板 (選擇比較日期與過濾 ETF)", expanded=True):
         st.subheader("📅 日期與區間設定")
         
         # --- 日期選擇 (日曆模式) ---
@@ -85,9 +58,11 @@ else:
             default_latest = max_date
             default_prev = pd.to_datetime(all_dates[1]).date()
             
-            # 側邊欄比較窄，改為上下排列
-            date_prev_obj = st.date_input("🗓️ 過去日期 (T-N)", value=default_prev, min_value=min_date, max_value=max_date, format="YYYY-MM-DD")
-            date_latest_obj = st.date_input("🗓️ 最新日期 (T)", value=default_latest, min_value=min_date, max_value=max_date, format="YYYY-MM-DD")
+            date_col1, date_col2 = st.columns(2)
+            with date_col1:
+                date_prev_obj = st.date_input("🗓️ 過去日期 (T-N)", value=default_prev, min_value=min_date, max_value=max_date, format="YYYY-MM-DD")
+            with date_col2:
+                date_latest_obj = st.date_input("🗓️ 最新日期 (T)", value=default_latest, min_value=min_date, max_value=max_date, format="YYYY-MM-DD")
             
             date_latest = date_latest_obj.strftime('%Y-%m-%d')
             date_prev = date_prev_obj.strftime('%Y-%m-%d')
@@ -104,7 +79,6 @@ else:
             st.stop()
 
         # 顯示下載失敗警示
-        import os
         missing_path = os.path.join("price_downloader", "missing_stocks.txt")
         if os.path.exists(missing_path):
             with open(missing_path, "r", encoding="utf-8") as f:
@@ -134,17 +108,20 @@ else:
             for code in available_etf_codes:
                 st.session_state[f"cb_{code}"] = st.session_state.select_all
 
-        # 全選
         st.checkbox("✅ 全選所有 ETF", key="select_all", on_change=toggle_all)
         
-        # 側邊欄較窄，改為垂直排列
+        # 恢復三欄排版節省空間
+        row1_cols = st.columns(3)
+        row2_cols = st.columns(3)
         for idx, code in enumerate(available_etf_codes):
             label = etf_names.get(code, f"{code} (未定義名稱)")
             
             if f"cb_{code}" not in st.session_state:
                 st.session_state[f"cb_{code}"] = st.session_state.select_all
             
-            if st.checkbox(label, key=f"cb_{code}"):
+            target_col = row1_cols[idx] if idx < 3 else row2_cols[idx - 3]
+            
+            if target_col.checkbox(label, key=f"cb_{code}"):
                 selected_etfs.append(code)
                 
         with st.popover("💡 ETF 起始日參考"):
@@ -158,6 +135,33 @@ else:
             | **00992A** | 2025-12-29 |
             | **00400A** | 2026-04-02 |
             """)
+
+# ==========================================
+# 網頁定義標題 (原本在最上，移至控制面板下方以免手機佔版面)
+# ==========================================
+title_html = f"""
+<style>
+#MainMenu {{visibility: hidden;}}
+footer {{visibility: hidden;}}
+header {{visibility: hidden;}}
+</style>
+<div style="margin-bottom: 20px;">
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+        <img src="data:image/png;base64,{logo_base64}" width="32" style="object-fit: contain;">
+        <span style="color: #CD002A; font-weight: 900; font-size: 28px;">國票期貨法人部製作</span>
+    </div>
+    <h2 style="margin: 0; font-size: 28px;">📊 主動式ETF：籌碼流向儀表板</h2>
+</div>
+"""
+st.markdown(title_html, unsafe_allow_html=True)
+
+st.markdown("""
+💡 **本儀表板提供四大核心功能：**
+1. 🏆 **持股變動綜合排行**：投信資金集中押注或大幅撤出的熱門標的。
+2. 📝 **成分股調倉明細單**：列出各支 ETF 對特定股票的加減碼操作 (包含前次與最新權重狀態)。
+3. 📈 **歷史 K 線與權重對照圖**：將股價走勢結合階梯式的持股權重變動。
+4. 🔲 **持股熱力圖**：顏色代表漲跌停，格子大小代表持股權重。
+""")
 
     # 防呆：至少勾選一項
     if not selected_etfs:
