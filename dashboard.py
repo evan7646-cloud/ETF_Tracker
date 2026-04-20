@@ -348,11 +348,11 @@ else:
         df_range = pd.DataFrame()
         
         if os.path.exists(csv_path):
-            df_price = pd.read_csv(csv_path)
-            df_price['Date'] = pd.to_datetime(df_price['Date'])
-            d1 = pd.to_datetime(date_prev)
-            d2 = pd.to_datetime(date_latest)
-            df_range = df_price[(df_price['Date'] >= d1) & (df_price['Date'] <= d2)].copy()
+            df_price = pd.read_csv(csv_path) # 讀取歷史股價 CSV
+            df_price['Date'] = pd.to_datetime(df_price['Date']) # 轉為日期格式
+            d1 = pd.to_datetime(date_prev) # 起始日
+            # 不設 d2 上界：延伸到 CSV 最新資料 (含今日盤中更新)
+            df_range = df_price[df_price['Date'] >= d1].copy() # 從 date_prev 到最新
             if not df_range.empty:
                 has_kline = True
 
@@ -470,32 +470,33 @@ else:
     ts_hm_text = f"　<span style='font-size:14px; color:#888;'>📡 股價更新: {price_ts_hm}</span>" if price_ts_hm else "" # 有時間戳就顯示
     st.markdown(f"<h3 style='font-size: 28px;'>🗺️ 成分股權重與區間漲跌幅熱力圖{ts_hm_text}</h3>", unsafe_allow_html=True) # 標題含更新時間
     
-    @st.cache_data(ttl=600)
-    def calc_price_change(stock_symbol, d_prev, d_latest):
-        import os
-        import pandas as pd
-        csv_path = os.path.join("price_downloader", "hist_prices", f"{stock_symbol}.csv")
-        if not os.path.exists(csv_path): return 0.0
+    @st.cache_data(ttl=60) # 縮短快取時間配合盤中更新
+    def calc_price_change(stock_symbol, d_prev):
+        """計算 date_prev 到 CSV 最新日期 (含今日盤中) 的漲跌幅"""
+        import os # 檔案路徑操作
+        import pandas as pd # 資料處理
+        csv_path = os.path.join("price_downloader", "hist_prices", f"{stock_symbol}.csv") # CSV 路徑
+        if not os.path.exists(csv_path): return 0.0 # 找不到檔案回傳 0
         try:
-            df_price = pd.read_csv(csv_path)
-            df_price['Date'] = pd.to_datetime(df_price['Date'])
-            df_price = df_price.sort_values(by='Date')
-            d1 = pd.to_datetime(d_prev)
-            d2 = pd.to_datetime(d_latest)
-            df_range = df_price[(df_price['Date'] >= d1) & (df_price['Date'] <= d2)]
-            if len(df_range) < 1: return 0.0
+            df_price = pd.read_csv(csv_path) # 讀取 CSV
+            df_price['Date'] = pd.to_datetime(df_price['Date']) # 轉日期格式
+            df_price = df_price.sort_values(by='Date') # 按日期排序
+            d1 = pd.to_datetime(d_prev) # 起始日
+            # 不設上界：用 CSV 中最新的收盤價 (可能是今日盤中更新)
+            df_from = df_price[df_price['Date'] >= d1] # date_prev 之後所有資料
+            if len(df_from) < 1: return 0.0 # 沒有資料
             
-            start_price = df_range.iloc[0]['Close']
-            end_price = df_range.iloc[-1]['Close']
-            if start_price > 0:
-                return (end_price - start_price) / start_price * 100
-        except:
+            start_price = df_from.iloc[0]['Close'] # 起始收盤價
+            end_price = df_price.iloc[-1]['Close'] # CSV 最新收盤價 (含今日盤中)
+            if start_price > 0: # 避免除以零
+                return (end_price - start_price) / start_price * 100 # 計算漲跌幅
+        except: # 任何異常回傳 0
             pass
         return 0.0
 
-    # 針對篩選後的合併資料計算每一檔股價的漲跌幅
+    # 針對篩選後的合併資料計算每一檔股價的漲跌幅 (用最新盤中價格)
     if '漲跌幅(%)' not in merged.columns:
-        merged['漲跌幅(%)'] = merged['Stock_Symbol'].apply(lambda x: calc_price_change(x, date_prev, date_latest))
+        merged['漲跌幅(%)'] = merged['Stock_Symbol'].apply(lambda x: calc_price_change(x, date_prev))
     
     tm_df = merged[merged['Weight_Latest'] > 0].copy()
     if not tm_df.empty:
